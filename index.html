@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clan-APP [TODN]</title>
+  
+  <link id="pwa-manifest" rel="manifest" href="">
+
+  <style>
+    body { background-color: #1a1a1a; color: white; font-family: sans-serif; text-align: center; padding-top: 40px; margin: 0; }
+    .logo-container { margin-bottom: 20px; }
+    .logo-img { width: 120px; height: 120px; border-radius: 20px; object-fit: cover; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+    .btn { background-color: #007bff; color: white; border: none; padding: 14px 28px; font-size: 18px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 85%; max-width: 320px; margin: 10px auto; box-shadow: 0 4px 6px rgba(0,0,0,0.3); text-decoration: none; display: inline-block; }
+    .btn-green { background-color: #28a745; }
+    .card { background-color: #252525; padding: 25px 15px; border-radius: 15px; width: 90%; max-width: 400px; margin: 0 auto; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+    p { color: #ccc; font-size: 15px; line-height: 1.4; padding: 0 10px; }
+    .loader { border: 4px solid #333; border-top: 4px solid #28a745; border-radius: 50%; width: 35px; height: 35px; animation: spin 1s linear infinite; margin: 15px auto; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <script>
+    // =========================================================================
+    // EINSTELLUNGEN: HIER GOOGLE-URL UND DEINEN REINEN BILDNAMEN EINTRAGEN
+    // =========================================================================
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzgDAk0TM2-m9yZrArtANCH3B50InaH3f24oCXh6-NKKzjS299101pftxWjl6LMnksEmw/exec";
+
+    // WICHTIG: Trag hier NUR den exakten Dateinamen deines Logos ein (z. B. "logo.png" oder "logo.jpg")!
+    // Achte genau auf Groß- und Kleinschreibung!
+    const CLAN_LOGO_URL = "Logo.png";
+    const manifestObject = {
+      "name": "Clan-APP [TODN]",
+      "short_name": "TODN",
+      "start_url": "./index.html",
+      "display": "standalone",
+      "background_color": "#1a1a1a",
+      "theme_color": "#1a1a1a",
+      "orientation": "portrait-primary",
+      "icons": [{"src": CLAN_LOGO_URL, "sizes": "512x512", "type": "image/png"}]
+    };
+    document.getElementById('pwa-manifest').setAttribute('href', 'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(manifestObject)));
+  </script>
+
+  <div class="card">
+    <div class="logo-container">
+      <img id="clan-logo" src="" class="logo-img" alt="TODN Logo">
+    </div>
+    
+    <h2>Clan-APP [TODN]</h2>
+    
+    <!-- Status-Text und Ladekreis beim automatischen Verbindungsaufbau -->
+    <div id="redirecting-status">
+      <div class="loader"></div>
+      <p style="color: #aaa; font-size: 13px;">Verbindung zum Clan-Tool wird hergestellt...</p>
+    </div>
+
+    <!-- Das Menü (wird im Hintergrund bereitgehalten) -->
+    <div id="menu-content" style="display: none;">
+      <p>Falls die automatische Weiterleitung blockiert wurde, tippe hier:</p>
+      <a href="#" id="manual-open-btn" class="btn btn-green" target="_blank">🎮 Zum Clan-Tool wechseln</a>
+    </div>
+
+    <div id="install-container" style="display: none;">
+      <hr style="border: 0; border-top: 1px solid #444; margin: 20px 0;">
+      <p style="font-size: 13px; color: #aaa;">Für schnellen Zugriff ohne Browserleiste:</p>
+      <button id="pwa-install-btn" class="btn">📲 App installieren</button>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('clan-logo').src = CLAN_LOGO_URL;
+
+    if ('serviceWorker' in navigator) {
+      const swCode = `self.addEventListener('install', e => self.skipWaiting()); self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => new Response('Offline'))));`;
+      const blob = new Blob([swCode], { type: 'application/javascript' });
+      navigator.serviceWorker.register(URL.createObjectURL(blob), { scope: './' });
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    let discordId = urlParams.get('id');
+    if (discordId) {
+      localStorage.setItem('clan_discord_id', discordId);
+    } else {
+      discordId = localStorage.getItem('clan_discord_id') || "";
+    }
+
+    const finalUrl = GOOGLE_SCRIPT_URL + "?id=" + discordId;
+    document.getElementById('manual-open-btn').href = finalUrl;
+
+    // Funktion für den erzwungenen automatischen Wechsel
+    function tryAutomaticRedirect() {
+      // Nutzt den direktesten Weg der URL-Ersetzung
+      window.location.href = finalUrl;
+    }
+
+    // Prüfen, ob als App gestartet
+    const isApp = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+
+    if (isApp) {
+      // Wenn es die App ist, sofort versuchen umzuspringen
+      tryAutomaticRedirect();
+      
+      // Falls das fehlschlägt (Sicherheitsblock), blende nach 1,2 Sekunden die Schalttafeln ein
+      setTimeout(() => {
+        document.getElementById('redirecting-status').style.display = 'none';
+        document.getElementById('menu-content').style.display = 'block';
+      }, 1200);
+    } else {
+      // Wenn im normalen Browser aufgerufen, zeige das Menü sofort
+      document.getElementById('redirecting-status').style.display = 'none';
+      document.getElementById('menu-content').style.display = 'block';
+    }
+
+    // Installations-Aufforderung abfangen
+    let deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      if (!isApp) {
+        document.getElementById('install-container').style.display = 'block';
+      }
+    });
+
+    document.getElementById('pwa-install-btn').addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        deferredPrompt = null;
+        document.getElementById('install-container').style.display = 'none';
+      }
+    });
+  </script>
+</body>
+</html>
